@@ -81,7 +81,7 @@ class K3sInstaller:
         if self.install_k3s(host_url) and os.system('kubectl --help') == 0:
             kubernetes.config.load_kube_config(config_file=K3sInstaller.RELEVANT_CONFIG_FILE)
             self._kube_client = kubernetes.client.CoreV1Api()
-            self._create_namespaced_secret(secret_name='k3s-server', namespace='kube-system', fields={
+            self._create_namespaced_secret(secret_name='cloudiy-server-details', namespace='kube-system', fields={
                 'vpn-token': base64.b64encode(self._preauth_key.encode('utf-8')).decode('utf-8'),
                 'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8')})
 
