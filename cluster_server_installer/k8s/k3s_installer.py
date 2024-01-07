@@ -83,6 +83,7 @@ class K3sInstaller:
             self._kube_client = kubernetes.client.CoreV1Api()
             self._create_namespaced_secret(secret_name='cloudiy-server-details', namespace='kube-system', fields={
                 'vpn-token': base64.b64encode(self._preauth_key.encode('utf-8')).decode('utf-8'),
+                'host-source-dns-name': base64.b64encode(host_url.encode('utf-8')).decode('utf-8'),
                 'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8')})
 
             return self.wait_for_metrics_server_to_start()
