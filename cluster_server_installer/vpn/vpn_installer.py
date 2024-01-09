@@ -75,11 +75,13 @@ class VpnServerInstaller:
 
     @staticmethod
     def install_tailscale() -> bool:
-        tailscale_file = pathlib.Path(__file__).parent / 'resources' / 'tailscale' / 'tailscale_1.56.1_amd64.tgz'
+        tailscale_file = pathlib.Path(__file__).parent.parent / 'resources' / 'tailscale' / 'tailscale_1.56.1_amd64.tgz'
         tailscale_file_path = pathlib.Path('/usr/bin/tailscale')
         tailscaled_file_path = pathlib.Path('/usr/sbin/tailscaled')
 
-        with TemporaryDirectory() as tmp, tarfile.open(tailscale_file, mode="r:gz") as tar:
+        os.system('systemctl unmask tailscaled.service') # precaution
+
+        with (TemporaryDirectory() as tmp, tarfile.open(tailscale_file, mode="r:gz") as tar):
             tmp_as_path = pathlib.Path(tmp)
             tar.extractall(path=tmp)
             tailscale_file_path.write_bytes((tmp_as_path / 'tailscale_1.56.1_amd64' / 'tailscale').read_bytes())
@@ -95,7 +97,7 @@ class VpnServerInstaller:
                 (tmp_as_path / 'tailscale_1.56.1_amd64' / 'systemd' / 'tailscaled.defaults').read_bytes())
 
             return os.system('systemctl enable tailscaled') == 0 and \
-                VpnServerInstaller.check_if_tailscale_is_installed()
+                os.system('systemctl start tailscaled') == 0 and VpnServerInstaller.check_if_tailscale_is_installed()
 
     @staticmethod
     def get_api_key() -> str:

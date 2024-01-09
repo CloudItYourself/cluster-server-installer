@@ -17,7 +17,9 @@ class K3sInstaller:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 520
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     KUBERNETES_DASHBOARD_DEPLOYMENT: Final[pathlib.Path] = pathlib.Path(
-        __file__).parent.parent / 'resources' / 'deployments' / 'kubernetes-dashboard.yaml'
+        __file__).parent.parent / 'resources' / 'deployments' / 'kubernetes_dashboard.yaml'
+    MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT: Final[pathlib.Path] = pathlib.Path(
+        __file__).parent.parent / 'resources' / 'deployments' / 'modified_kubernetes_dashboard.yaml'
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
@@ -61,6 +63,7 @@ class K3sInstaller:
         self._logger.info("K3S installed properly")
 
     def install_k3s(self, host_url: str) -> bool:
+        os.system('tailscale down')
         return os.system(
             f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.28.5+k3s1 INSTALL_K3S_EXEC="server --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=http://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
@@ -95,11 +98,14 @@ class K3sInstaller:
             logging.error("Failed to install k3s")
             return False
 
-    def _install_dashboard(self, host_url: str) -> bool:
+    @staticmethod
+    def _install_dashboard(host_url: str) -> bool:
+        K3sInstaller.MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT.write_text(
+            K3sInstaller.KUBERNETES_DASHBOARD_DEPLOYMENT.read_text().replace('${HOST_NAME}',
+                                                                             host_url))
+        api_client = client.ApiClient()
         try:
-            utils.create_from_yaml(self._kube_client,
-                                   K3sInstaller.KUBERNETES_DASHBOARD_DEPLOYMENT.read_text().replace('${HOST_NAME}',
-                                                                                                    host_url))
+            utils.create_from_yaml(api_client, str(K3sInstaller.MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT.absolute()))
             return True
         except FailToCreateError:
             logging.exception(f"Failed to install prometheus")
