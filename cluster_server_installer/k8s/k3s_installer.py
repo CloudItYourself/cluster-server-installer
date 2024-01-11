@@ -1,13 +1,11 @@
 import base64
 import logging
 import os
-import pathlib
 import subprocess
 import time
 from typing import Final, Optional, Dict
-from kubernetes import client, utils
+from kubernetes import client
 import kubernetes
-from kubernetes.utils import FailToCreateError
 
 from cluster_server_installer import LOGGER_NAME
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
@@ -16,10 +14,6 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 class K3sInstaller:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 520
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
-    KUBERNETES_DASHBOARD_DEPLOYMENT: Final[pathlib.Path] = pathlib.Path(
-        __file__).parent.parent / 'resources' / 'deployments' / 'kubernetes_dashboard.yaml'
-    MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT: Final[pathlib.Path] = pathlib.Path(
-        __file__).parent.parent / 'resources' / 'deployments' / 'modified_kubernetes_dashboard.yaml'
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
@@ -93,20 +87,8 @@ class K3sInstaller:
                 'host-source-dns-name': base64.b64encode(host_url.encode('utf-8')).decode('utf-8'),
                 'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8')})
 
-            return self.wait_for_metrics_server_to_start() and self._install_dashboard(host_url)
+            return self.wait_for_metrics_server_to_start()
         else:
             logging.error("Failed to install k3s")
             return False
 
-    @staticmethod
-    def _install_dashboard(host_url: str) -> bool:
-        K3sInstaller.MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT.write_text(
-            K3sInstaller.KUBERNETES_DASHBOARD_DEPLOYMENT.read_text().replace('${HOST_NAME}',
-                                                                             host_url))
-        api_client = client.ApiClient()
-        try:
-            utils.create_from_yaml(api_client, str(K3sInstaller.MODIFIED_KUBERNETES_DASHBOARD_DEPLOYMENT.absolute()))
-            return True
-        except FailToCreateError:
-            logging.exception(f"Failed to install prometheus")
-            return False
