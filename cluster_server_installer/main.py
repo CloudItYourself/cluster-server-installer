@@ -6,18 +6,19 @@ from cluster_server_installer.utilities.logging import initialize_logger
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 
 
-def main(host_url: str):
+def main(host_url: str, email: str):
     initialize_logger(LOGGER_NAME)
     vpn_installer = VpnServerInstaller()
     vpn_installer.install_vpn(host_url=host_url)
 
     k3s_installer = K3sInstaller()
-    k3s_installer.install_kubernetes(host_url=host_url)
+    k3s_installer.install_kubernetes(host_url=host_url, email=email)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='CloudIY Server Installer',
         description='Installs VPN and K3S')
     parser.add_argument('server_url', type=str)
+    parser.add_argument('email', type=str)
     args = parser.parse_args()
-    main(args.server_url)
+    main(args.server_url, args.email)

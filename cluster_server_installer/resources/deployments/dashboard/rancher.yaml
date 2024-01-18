@@ -9,12 +9,12 @@ spec:
   targetNamespace: cattle-system
   version: 2.8.0
   valuesContent: |-
-    hostname: dashboard.ronenv96.cloud-iy.com
-    bootstrapPassword: admin
+    hostname: dashboard.${DOMAIN}
+    bootstrapPassword: ${DASHBOARD_PASSWORD}
     ingress:
      tls:
        source: letsEncrypt
     letsEncrypt:
-     email: ronen4822@gmail.com
+     email: ${EMAIL}
      ingress:
        class: traefik

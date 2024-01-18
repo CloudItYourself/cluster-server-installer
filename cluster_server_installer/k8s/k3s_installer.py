@@ -1,11 +1,16 @@
 import base64
 import logging
 import os
+import pathlib
+import random
+import string
 import subprocess
 import time
-from typing import Final, Optional, Dict
-from kubernetes import client
+from tempfile import TemporaryDirectory
+from typing import Final, Optional, Dict, List
+from kubernetes import client, utils
 import kubernetes
+from kubernetes.utils import FailToCreateError
 
 from cluster_server_installer import LOGGER_NAME
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
@@ -14,6 +19,13 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 class K3sInstaller:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 520
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
+    DEPLOYMENTS: Final[List[pathlib.Path]] = [
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'cert-manager.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'lets-encrypt.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher-namespace.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher.yaml',
+    ]
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
@@ -47,13 +59,14 @@ class K3sInstaller:
                 pass
         return False
 
-    def install_kubernetes(self, host_url: str):
+    def install_kubernetes(self, host_url: str, email: str):
         self._logger.info("Verifiying k3s installation...")
         if not self.check_if_kubernetes_installed_properly():
             self._logger.info("Installing k3s...")
             if not self._install_kube_env(host_url):
                 self._logger.error("K3s installation failed...")
                 return
+            K3sInstaller._install_deployments(email=email, domain=host_url)
         self._logger.info("K3S installed properly")
 
     def install_k3s(self, host_url: str) -> bool:
@@ -92,3 +105,22 @@ class K3sInstaller:
             logging.error("Failed to install k3s")
             return False
 
+    @staticmethod
+    def _install_deployments(email: str, domain: str) -> bool:
+        dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+
+        api_client = client.ApiClient()
+        with TemporaryDirectory() as tmp_dir:
+            tmp_dir_path = pathlib.Path(tmp_dir)
+            for deployment in K3sInstaller.DEPLOYMENTS:
+                tmp_file_name = tmp_dir_path / deployment.name
+                tmp_file_name.write_text(
+                    deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
+                        '${DASHBOARD_PASSWORD}', dashboard_initial_pwd))
+                try:
+                    utils.create_from_yaml(api_client, str(tmp_file_name.absolute()))
+                except FailToCreateError:
+                    logging.exception(f"Failed to install {deployment}")
+                    return False
+        print(f"Dashboard initial password: {dashboard_initial_pwd}")
+        return True
