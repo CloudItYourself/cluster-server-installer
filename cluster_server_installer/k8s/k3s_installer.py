@@ -66,7 +66,9 @@ class K3sInstaller:
             if not self._install_kube_env(host_url):
                 self._logger.error("K3s installation failed...")
                 return
-            K3sInstaller._install_deployments(email=email, domain=host_url)
+            if not K3sInstaller._install_deployments(email=email, domain=host_url):
+                self._logger.error("K3s installation failed... failed to deploy pre-requisites")
+                return
         self._logger.info("K3S installed properly")
 
     def install_k3s(self, host_url: str) -> bool:
@@ -108,8 +110,6 @@ class K3sInstaller:
     @staticmethod
     def _install_deployments(email: str, domain: str) -> bool:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-
-        api_client = client.ApiClient()
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
             for deployment in K3sInstaller.DEPLOYMENTS:
@@ -117,9 +117,8 @@ class K3sInstaller:
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
                         '${DASHBOARD_PASSWORD}', dashboard_initial_pwd))
-                try:
-                    utils.create_from_yaml(api_client, str(tmp_file_name.absolute()))
-                except FailToCreateError:
+
+                if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
                     return False
         print(f"Dashboard initial password: {dashboard_initial_pwd}")
