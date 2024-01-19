@@ -112,7 +112,7 @@ class K3sInstaller:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
-            for deployment in K3sInstaller.DEPLOYMENTS:
+            for i, deployment  in enumerate(K3sInstaller.DEPLOYMENTS):
                 tmp_file_name = tmp_dir_path / deployment.name
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
@@ -121,5 +121,8 @@ class K3sInstaller:
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
                     return False
+                if i == 0:
+                    print("Waiting for cert manager to come up...")
+                    time.sleep(45)
         print(f"Dashboard initial password: {dashboard_initial_pwd}")
         return True
