@@ -82,13 +82,27 @@ class K3sInstaller:
         if self.install_k3s(host_url) and os.system('kubectl --help') == 0:
             kubernetes.config.load_kube_config(config_file=K3sInstaller.RELEVANT_CONFIG_FILE)
             self._kube_client = kubernetes.client.CoreV1Api()
-            self._create_namespaced_secret(secret_name='cloudiy-server-details', namespace='kube-system', fields={
+            try:
+                self._kube_client.create_namespace(
+                    body=client.V1Namespace(metadata=client.V1ObjectMeta(name="cloud-iy"))
+                )
+            except Exception:
+                self._logger.warning("Failed to create cloud-iy namespace...")
+            secret = self._kube_client.read_namespaced_secret("k3s-serving", "kube-system")
+
+            ca_cert = base64.b64decode(secret.data['ca.crt'])
+            client_cert = base64.b64decode(secret.data['tls.crt'])
+            private_key = base64.b64decode(secret.data['tls.key'])
+
+            self._create_namespaced_secret(secret_name='cloudiy-server-details', namespace='cloud-iy', fields={
                 'vpn-token': base64.b64encode(self._preauth_key.encode('utf-8')).decode('utf-8'),
                 'host-source-dns-name': base64.b64encode(host_url.encode('utf-8')).decode('utf-8'),
-                'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8')})
+                'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8'),
+                'ca-crt': base64.b64encode(ca_cert).decode('utf-8'),
+                'client-crt': base64.b64encode(client_cert).decode('utf-8'),
+                'client-key': base64.b64encode(private_key).decode('utf-8')})
 
             return self.wait_for_metrics_server_to_start()
         else:
             logging.error("Failed to install k3s")
             return False
-
