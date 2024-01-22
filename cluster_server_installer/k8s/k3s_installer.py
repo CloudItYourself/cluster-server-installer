@@ -169,7 +169,7 @@ class K3sInstaller:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         redis_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         self._create_namespaced_secret(secret_name='redis-pwd', namespace='cloud-iy', fields={
-            'redis-pwd': redis_pwd
+            'redis-pwd': base64.b64encode(redis_pwd.encode('utf-8')).decode('utf-8')
         })
 
         with TemporaryDirectory() as tmp_dir:
