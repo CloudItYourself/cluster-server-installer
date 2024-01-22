@@ -8,9 +8,10 @@ import subprocess
 import time
 from tempfile import TemporaryDirectory
 from typing import Final, Optional, Dict, List
+
+import requests
 from kubernetes import client, utils
 import kubernetes
-from kubernetes.utils import FailToCreateError
 
 from cluster_server_installer import LOGGER_NAME
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
@@ -18,6 +19,8 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 
 class K3sInstaller:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 520
+    DASHBOARD_STARTUP_TIME_IN_SECONDS: Final[int] = 500
+
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'cert-manager.yaml',
@@ -25,6 +28,7 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'redis.yaml',
     ]
 
     def __init__(self):
@@ -122,11 +126,22 @@ class K3sInstaller:
             return False
 
     @staticmethod
+    def wait_for_dashboard_to_respond(domain: str, timeout_in_seconds: int) -> bool:
+        start_time = time.time()
+        while time.time() - start_time < timeout_in_seconds:
+            try:
+                requests.get(f"https://dashboard.{domain}")
+                return True
+            except Exception:
+                time.sleep(1)
+        return False
+
+    @staticmethod
     def _install_deployments(email: str, domain: str) -> bool:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
-            for i, deployment  in enumerate(K3sInstaller.DEPLOYMENTS):
+            for i, deployment in enumerate(K3sInstaller.DEPLOYMENTS):
                 tmp_file_name = tmp_dir_path / deployment.name
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
@@ -138,5 +153,9 @@ class K3sInstaller:
                 if i == 0:
                     print("Waiting for cert manager to come up...")
                     time.sleep(45)
-        print(f"Dashboard initial password: {dashboard_initial_pwd}")
-        return True
+
+        if K3sInstaller.wait_for_dashboard_to_respond(domain, K3sInstaller.DASHBOARD_STARTUP_TIME_IN_SECONDS):
+            print(f"Dashboard initial password: {dashboard_initial_pwd}")
+            return True
+        return False
+
