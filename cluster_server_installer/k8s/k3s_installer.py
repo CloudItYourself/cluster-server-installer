@@ -107,6 +107,9 @@ class K3sInstaller:
                 )
             except Exception:
                 self._logger.warning("Failed to create cloud-iy namespace...")
+            if not self.wait_for_metrics_server_to_start():
+                return False
+
             secret = self._kube_client.read_namespaced_secret("k3s-serving", "kube-system")
 
             ca_cert = base64.b64decode(secret.data['ca.crt'])
@@ -120,7 +123,7 @@ class K3sInstaller:
                 'ca-crt': base64.b64encode(ca_cert).decode('utf-8'),
                 'client-crt': base64.b64encode(client_cert).decode('utf-8'),
                 'client-key': base64.b64encode(private_key).decode('utf-8')})
-            return self.wait_for_metrics_server_to_start()
+            return True
         else:
             logging.error("Failed to install k3s")
             return False
