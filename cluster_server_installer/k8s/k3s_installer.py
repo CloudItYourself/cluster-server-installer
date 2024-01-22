@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 import pathlib
@@ -63,13 +64,18 @@ class K3sInstaller:
                 pass
         return False
 
-    def install_kubernetes(self, host_url: str, email: str):
+    def install_kubernetes(self, host_url: str, email: str, registry_url: str, access_key: str):
         self._logger.info("Verifiying k3s installation...")
         if not self.check_if_kubernetes_installed_properly():
             self._logger.info("Installing k3s...")
             if not self._install_kube_env(host_url):
                 self._logger.error("K3s installation failed...")
                 return
+
+            if not self.create_image_pull_secret(registry_url=registry_url, access_key=access_key):
+                self._logger.error("K3s installation failed... failed to create cloud-iy pull permissions")
+                return
+
             if not self._install_deployments(email=email, domain=host_url):
                 self._logger.error("K3s installation failed... failed to deploy pre-requisites")
                 return
@@ -110,21 +116,41 @@ class K3sInstaller:
             if not self.wait_for_metrics_server_to_start():
                 return False
 
-            secret = self._kube_client.read_namespaced_secret("k3s-serving", "kube-system")
-
-            client_cert = base64.b64decode(secret.data['tls.crt'])
-            private_key = base64.b64decode(secret.data['tls.key'])
+            remote_kube_config = base64.b64encode(pathlib.Path(K3sInstaller.RELEVANT_CONFIG_FILE).read_text().replace(
+                'server: https://127.0.0.1:6443', f'server: https://{host_url}:6443').encode('utf-8')).decode('utf-8')
 
             self._create_namespaced_secret(secret_name='cloudiy-server-details', namespace='cloud-iy', fields={
                 'vpn-token': base64.b64encode(self._preauth_key.encode('utf-8')).decode('utf-8'),
                 'host-source-dns-name': base64.b64encode(host_url.encode('utf-8')).decode('utf-8'),
                 'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8'),
-                'client-crt': base64.b64encode(client_cert).decode('utf-8'),
-                'client-key': base64.b64encode(private_key).decode('utf-8')})
+                'kubernetes-config-file': base64.b64encode(remote_kube_config.encode('utf-8')).decode('utf-8')})
+
             return True
         else:
             logging.error("Failed to install k3s")
             return False
+
+    def create_image_pull_secret(self, registry_url: str, access_key: str):
+        docker_config = {
+            "auths": {
+                registry_url: {
+                    "username": "usr",
+                    "password": access_key,
+                    "auth": base64.b64encode(f"usr:{access_key}".encode()).decode()
+                }
+            }
+        }
+
+        self._kube_client.create_namespaced_secret(
+            namespace='cloud-iy',
+            body=client.V1Secret(
+                metadata=client.V1ObjectMeta(name='cloud-iy-credentials'),
+                type='kubernetes.io/dockerconfigjson',
+                data={".dockerconfigjson": base64.b64encode(json.dumps(docker_config).encode()).decode()}
+            )
+        )
+
+        return True
 
     @staticmethod
     def wait_for_dashboard_to_respond(domain: str, timeout_in_seconds: int) -> bool:
@@ -152,7 +178,7 @@ class K3sInstaller:
                 tmp_file_name = tmp_dir_path / deployment.name
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
-                        '${DASHBOARD_PASSWORD}', dashboard_initial_pwd))
+                        '${DASHBOARD_PASSWORD}', dashboard_initial_pwd).replace('${REDIS_PASSWORD}', redis_pwd))
 
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
