@@ -70,7 +70,7 @@ class K3sInstaller:
             if not self._install_kube_env(host_url):
                 self._logger.error("K3s installation failed...")
                 return
-            if not K3sInstaller._install_deployments(email=email, domain=host_url):
+            if not self._install_deployments(email=email, domain=host_url):
                 self._logger.error("K3s installation failed... failed to deploy pre-requisites")
                 return
         self._logger.info("K3S installed properly")
@@ -78,7 +78,7 @@ class K3sInstaller:
     def install_k3s(self, host_url: str) -> bool:
         os.system('tailscale down')
         return os.system(
-            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=http://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
+            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --node-label ciy.persistent_node=True --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=http://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
     def _create_namespaced_secret(self, secret_name: str, namespace: str, fields: Dict[str, str]):
         self._kube_client.create_namespaced_secret(
@@ -112,7 +112,6 @@ class K3sInstaller:
 
             secret = self._kube_client.read_namespaced_secret("k3s-serving", "kube-system")
 
-            ca_cert = base64.b64decode(secret.data['ca.crt'])
             client_cert = base64.b64decode(secret.data['tls.crt'])
             private_key = base64.b64decode(secret.data['tls.key'])
 
@@ -120,7 +119,6 @@ class K3sInstaller:
                 'vpn-token': base64.b64encode(self._preauth_key.encode('utf-8')).decode('utf-8'),
                 'host-source-dns-name': base64.b64encode(host_url.encode('utf-8')).decode('utf-8'),
                 'k3s-node-token': base64.b64encode(K3sInstaller.get_k3s_node_token().encode('utf-8')).decode('utf-8'),
-                'ca-crt': base64.b64encode(ca_cert).decode('utf-8'),
                 'client-crt': base64.b64encode(client_cert).decode('utf-8'),
                 'client-key': base64.b64encode(private_key).decode('utf-8')})
             return True
@@ -133,15 +131,21 @@ class K3sInstaller:
         start_time = time.time()
         while time.time() - start_time < timeout_in_seconds:
             try:
-                requests.get(f"https://dashboard.{domain}")
-                return True
+                resp = requests.get(f"https://dashboard.{domain}")
+                if resp.status_code != 404:
+                    return True
             except Exception:
-                time.sleep(1)
+                pass
+            time.sleep(1)
         return False
 
-    @staticmethod
-    def _install_deployments(email: str, domain: str) -> bool:
+    def _install_deployments(self, email: str, domain: str) -> bool:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        redis_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        self._create_namespaced_secret(secret_name='redis-pwd', namespace='cloud-iy', fields={
+            'redis-pwd': redis_pwd
+        })
+
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
             for i, deployment in enumerate(K3sInstaller.DEPLOYMENTS):
@@ -161,4 +165,3 @@ class K3sInstaller:
             print(f"Dashboard initial password: {dashboard_initial_pwd}")
             return True
         return False
-
