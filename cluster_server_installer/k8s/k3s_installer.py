@@ -99,7 +99,7 @@ class K3sInstaller:
 
     @staticmethod
     def get_k3s_node_token() -> str:
-        return subprocess.run(['k3s', 'token', 'create'],
+        return subprocess.run(['k3s', 'token', 'create', '-ttl', '0'],
                               stdout=subprocess.PIPE).stdout.decode('utf-8').splitlines()[-1]
 
     def _install_kube_env(self, host_url: str) -> bool:
