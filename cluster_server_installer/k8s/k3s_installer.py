@@ -99,7 +99,7 @@ class K3sInstaller:
 
     @staticmethod
     def get_k3s_node_token() -> str:
-        return pathlib.Path('/var/lib/rancher/k3s/server/agent-token').read_text()
+        return pathlib.Path('/var/lib/rancher/k3s/server/agent-token').read_text().replace("\n", "")
 
     def _install_kube_env(self, host_url: str) -> bool:
         self._preauth_key = VpnServerInstaller.get_api_key()
