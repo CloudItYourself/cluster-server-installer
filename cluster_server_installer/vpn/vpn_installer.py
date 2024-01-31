@@ -8,13 +8,33 @@ from typing import Final
 
 from cluster_server_installer import LOGGER_NAME
 
+ACL_TEMPLATE = """
+{
+  "acls": [
+  {
+      "action": "accept",
+      "users": ["cluster-user"],
+      "ports": ["*"]
+    }
+  ],
+  "autoApprovers": {
+        "routes": {
+            "10.42.0.0/16":        ["cluster-user"],
+            "2001:cafe:42::/56": ["cluster-user"],
+        },
+    },
+}
+"""
+
 
 class VpnServerInstaller:
     VPN_PORT: Final[int] = 30000
     HEAD_SCALE_VERSION: Final[str] = '0.22.3'
     HEAD_SCALE_CONFIG_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/config.yaml')
+    HEAD_SCALE_ACL_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/acl.json')
     HEAD_SCALE_URL: Final[str] = 'server_url: http://{host_url}:30000'
     HEAD_SCALE_ADDR: Final[str] = 'listen_addr: 0.0.0.0:30000'
+    HEAD_SCALE_ACL_LINE: Final[str] = 'acl_policy_path: ""'
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
@@ -62,12 +82,17 @@ class VpnServerInstaller:
             return False
 
         self._logger.info("Configuring headscale service")
+        VpnServerInstaller.HEAD_SCALE_ACL_PATH.write_text(ACL_TEMPLATE)
         head_scale_config = VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.read_text()
         VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.write_text(
             head_scale_config.replace('server_url: http://127.0.0.1:8080',
                                       VpnServerInstaller.HEAD_SCALE_URL.format(host_url=host_url)).replace(
-                'listen_addr: 127.0.0.1:8080', VpnServerInstaller.HEAD_SCALE_ADDR))
+                'listen_addr: 127.0.0.1:8080', VpnServerInstaller.HEAD_SCALE_ADDR).replace(
+                VpnServerInstaller.HEAD_SCALE_ACL_LINE,
+                f'acl_policy_path: {str(VpnServerInstaller.HEAD_SCALE_ACL_PATH.absolute())}'))
         VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.chmod(0o777)
+        VpnServerInstaller.HEAD_SCALE_ACL_PATH.chmod(0o777)
+
         self._logger.info("Starting headscale")
         status &= os.system(f'systemctl start headscale') == 0
         return status and os.system(
@@ -79,7 +104,7 @@ class VpnServerInstaller:
         tailscale_file_path = pathlib.Path('/usr/bin/tailscale')
         tailscaled_file_path = pathlib.Path('/usr/sbin/tailscaled')
 
-        os.system('systemctl unmask tailscaled.service') # precaution
+        os.system('systemctl unmask tailscaled.service')  # precaution
 
         with (TemporaryDirectory() as tmp, tarfile.open(tailscale_file, mode="r:gz") as tar):
             tmp_as_path = pathlib.Path(tmp)
