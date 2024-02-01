@@ -62,7 +62,9 @@ class VpnServerInstaller:
                 raise RuntimeError("Failed to issue headscale certificates")
 
             self._logger.info("Installing headscale...")
-            installation_status = self.install_headscale(host_url=host_url, *cert_installer.get_certificate_root_path())
+            certs_location = cert_installer.get_certificate_root_path()
+            installation_status = self.install_headscale(host_url=host_url, cert_crt_path=certs_location[0],
+                                                         cert_key_path=certs_location[1])
             self._logger.info(f"Headscale installation status: {installation_status}")
 
         if not installation_status:

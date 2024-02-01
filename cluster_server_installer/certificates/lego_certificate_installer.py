@@ -1,6 +1,7 @@
 import os
 import pathlib
 import random
+import crontab
 from typing import Final, Tuple
 
 
@@ -18,15 +19,18 @@ class LegoCertificateInstaller:
     def install_certificates(self) -> bool:
         command = f'GODADDY_API_KEY={self._access_key} \
         GODADDY_API_SECRET={self._secret_key} \
-        GODADDY_PROPAGATION_TIMEOUT= \
-        lego --dns-timeout {LegoCertificateInstaller.DNS_TIMEOUT}--email {self._email} --dns godaddy --domains {self._domain}'
+        {LegoCertificateInstaller.LEGO_FILE_PATH} --dns-timeout {LegoCertificateInstaller.DNS_TIMEOUT} --email {self._email} --dns godaddy --domains {self._domain}'
         cert_installed = os.system(command + " run") == 0
         if not cert_installed:
             return False
+        cron = crontab.CronTab(user='root')  # replace 'root' with your username if needed
+        job = cron.new(command=command + " renew")
+        job.minute.every(1)  # replace with desired frequency
+        job.from_line(f'{random.randrange(0, 59)} {random.randrange(0, 23)} 20 * *')
+        cron.write()
 
-        return os.system(
-            f'(crontab - l 2 > /dev/null; echo "{random.randrange(0, 59)} {random.randrange(0, 23)} 20 * * {command} renew") | crontab -') == 0
+        return True
 
     def get_certificate_root_path(self) -> Tuple[pathlib.Path, pathlib.Path]:
-        return (LegoCertificateInstaller.LEGO_FILE_PATH.parent / '.lego' / f'{self._domain}.crt',
-                LegoCertificateInstaller.LEGO_FILE_PATH.parent / '.lego' / f'{self._domain}.key')
+        return (pathlib.Path('.') / '.lego' / f'{self._domain}.crt',
+                pathlib.Path('.') / '.lego' / f'{self._domain}.key')
