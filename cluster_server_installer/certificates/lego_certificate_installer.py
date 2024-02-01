@@ -23,6 +23,8 @@ class LegoCertificateInstaller:
         cert_installed = os.system(command + " run") == 0
         if not cert_installed:
             return False
+
+
         cron = crontab.CronTab(user='root')  # replace 'root' with your username if needed
         job = cron.new(command=command + " renew")
         job.minute.every(1)  # replace with desired frequency
@@ -32,5 +34,7 @@ class LegoCertificateInstaller:
         return True
 
     def get_certificate_root_path(self) -> Tuple[pathlib.Path, pathlib.Path]:
+        (pathlib.Path('.') / '.lego' / f'{self._domain}.crt').chmod(0o777)
+        (pathlib.Path('.') / '.lego' / f'{self._domain}.key').chmod(0o777)
         return (pathlib.Path('.') / '.lego' / f'{self._domain}.crt',
                 pathlib.Path('.') / '.lego' / f'{self._domain}.key')
