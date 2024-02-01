@@ -22,7 +22,7 @@ class LegoCertificateInstaller:
         command = f'GODADDY_API_KEY={self._access_key} \
         GODADDY_API_SECRET={self._secret_key} \
         GODADDY_PROPAGATION_TIMEOUT={LegoCertificateInstaller.DNS_TIMEOUT} {LegoCertificateInstaller.LEGO_FILE_PATH} --path {str(LegoCertificateInstaller.CERT_DIR.absolute())} --email {self._email} --dns godaddy --domains {self._domain} --accept-tos'
-        cert_installed = os.system(command + " new") == 0
+        cert_installed = os.system(command + " run") == 0
         if not cert_installed:
             return False
 
@@ -34,5 +34,7 @@ class LegoCertificateInstaller:
         return True
 
     def get_certificate_root_path(self) -> Tuple[pathlib.Path, pathlib.Path]:
+        (LegoCertificateInstaller.CERT_DIR / 'certificates' / f'{self._domain}.crt').chmod(0o644)
+        (LegoCertificateInstaller.CERT_DIR / 'certificates' / f'{self._domain}.key').chmod(0o644)
         return (LegoCertificateInstaller.CERT_DIR / 'certificates' / f'{self._domain}.crt',
                 LegoCertificateInstaller.CERT_DIR / 'certificates' / f'{self._domain}.key')
