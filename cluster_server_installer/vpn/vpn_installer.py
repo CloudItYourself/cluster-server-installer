@@ -7,34 +7,38 @@ from tempfile import TemporaryDirectory
 from typing import Final
 
 from cluster_server_installer import LOGGER_NAME
+from cluster_server_installer.certificates.lego_certificate_installer import LegoCertificateInstaller
 
 ACL_TEMPLATE = """
-{
+{{
   "acls": [
-  {
+  {{
       "action": "accept",
       "users": ["cluster-user"],
       "ports": ["*"]
-    }
+    }}
   ],
-  "autoApprovers": {
-        "routes": {
+  "autoApprovers": {{
+        "routes": {{
             "10.42.0.0/16":        ["cluster-user"],
-            "2001:cafe:42::/56": ["cluster-user"],
-        },
-    },
-}
+{cluster_subnets}            "2001:cafe:42::/56": ["cluster-user"],
+        }},
+    }},
+}}
 """
 
 
 class VpnServerInstaller:
     VPN_PORT: Final[int] = 30000
-    HEAD_SCALE_VERSION: Final[str] = '0.22.3'
+    HEAD_SCALE_VERSION: Final[str] = '0.23.0-alpha3'
+
     HEAD_SCALE_CONFIG_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/config.yaml')
     HEAD_SCALE_ACL_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/acl.json')
-    HEAD_SCALE_URL: Final[str] = 'server_url: http://{host_url}:30000'
+    HEAD_SCALE_URL: Final[str] = 'server_url: https://{host_url}:30000'
     HEAD_SCALE_ADDR: Final[str] = 'listen_addr: 0.0.0.0:30000'
     HEAD_SCALE_ACL_LINE: Final[str] = 'acl_policy_path: ""'
+    HEAD_SCALE_CERT_PATH: Final[str] = 'tls_cert_path: ""'
+    HEAD_SCALE_KEY_PATH: Final[str] = 'tls_key_path: ""'
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
@@ -47,12 +51,18 @@ class VpnServerInstaller:
     def check_if_tailscale_is_installed() -> bool:
         return os.system('systemctl is-active quiet tailscaled') == 0
 
-    def install_vpn(self, host_url: str):
+    def install_vpn(self, host_url: str, email: str, godaddy_key: str, godaddy_secret: str):
         installation_status = True
         self._logger.info("Checking if headscale is installed")
         if not VpnServerInstaller.check_if_headscale_is_installed():
+            self._logger.info("Installing certificates...")
+            cert_installer = LegoCertificateInstaller(godaddy_key, godaddy_secret, email, host_url)
+
+            if not cert_installer.install_certificates():
+                raise RuntimeError("Failed to issue headscale certificates")
+
             self._logger.info("Installing headscale...")
-            installation_status = self.install_headscale(host_url=host_url)
+            installation_status = self.install_headscale(host_url=host_url, *cert_installer.get_certificate_root_path())
             self._logger.info(f"Headscale installation status: {installation_status}")
 
         if not installation_status:
@@ -69,7 +79,15 @@ class VpnServerInstaller:
             self._logger.fatal("Error!! failed to install tailscale... aborting")
             raise RuntimeError("Failed to install tailscale... aborting")
 
-    def install_headscale(self, host_url: str) -> bool:
+    @staticmethod
+    def create_headscale_acl_policies():
+        string = ''
+        template = '            "10.42.{subnet}.0/24":        ["cluster-user"],\n'
+        for i in range(255):
+            string += template.format(subnet=i)
+        return ACL_TEMPLATE.format(cluster_subnets=string)
+
+    def install_headscale(self, host_url: str, cert_crt_path: pathlib.Path, cert_key_path: pathlib.Path) -> bool:
         status = True
         status &= os.system(f'wget --output-document=headscale.deb \
   https://github.com/juanfont/headscale/releases/download/v{VpnServerInstaller.HEAD_SCALE_VERSION}/headscale_{VpnServerInstaller.HEAD_SCALE_VERSION}_linux_amd64.deb') == 0
@@ -82,14 +100,17 @@ class VpnServerInstaller:
             return False
 
         self._logger.info("Configuring headscale service")
-        VpnServerInstaller.HEAD_SCALE_ACL_PATH.write_text(ACL_TEMPLATE)
+        VpnServerInstaller.HEAD_SCALE_ACL_PATH.write_text(VpnServerInstaller.create_headscale_acl_policies())
         head_scale_config = VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.read_text()
         VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.write_text(
             head_scale_config.replace('server_url: http://127.0.0.1:8080',
                                       VpnServerInstaller.HEAD_SCALE_URL.format(host_url=host_url)).replace(
                 'listen_addr: 127.0.0.1:8080', VpnServerInstaller.HEAD_SCALE_ADDR).replace(
                 VpnServerInstaller.HEAD_SCALE_ACL_LINE,
-                f'acl_policy_path: {str(VpnServerInstaller.HEAD_SCALE_ACL_PATH.absolute())}'))
+                f'acl_policy_path: {str(VpnServerInstaller.HEAD_SCALE_ACL_PATH.absolute())}').replace(
+                VpnServerInstaller.HEAD_SCALE_KEY_PATH, f'tls_key_path: {str(cert_key_path.absolute())}').replace(
+                VpnServerInstaller.HEAD_SCALE_CERT_PATH, f'tls_cert_path: {str(cert_crt_path.absolute())}'))
+
         VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.chmod(0o777)
         VpnServerInstaller.HEAD_SCALE_ACL_PATH.chmod(0o777)
 
@@ -136,4 +157,4 @@ class VpnServerInstaller:
 
 
 if __name__ == '__main__':
-    VpnServerInstaller.install_vpn()
+    print(VpnServerInstaller.create_headscale_acl_policies())

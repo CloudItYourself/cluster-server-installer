@@ -1,1 +1,1 @@
-LOGGER_NAME = 'tpc_logger'
+LOGGER_NAME = 'ciy_logger'
