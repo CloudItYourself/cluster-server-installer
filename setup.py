@@ -5,7 +5,8 @@ setup(
     version="0.0.1",
     include_package_data=True,
     package_data={'': ['resources/tailscale/*.tgz', 'resources/deployments/certificates/*.yaml',
-                       'resources/deployments/dashboard/*.yaml','resources/cert_provider/*']},
+                       'resources/deployments/dashboard/*.yaml', 'resources/deployments/ciy/*.yaml',
+                       'resources/cert_provider/*']},
     packages=find_packages(),
-    install_requires=['kubernetes', 'requests', 'python-crontab']  # Todo: load requirements.txt
+    install_requires=['kubernetes', 'requests']  # Todo: load requirements.txt
 )
