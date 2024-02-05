@@ -8,5 +8,5 @@ setup(
                        'resources/deployments/dashboard/*.yaml', 'resources/deployments/ciy/*.yaml',
                        'resources/cert_provider/*']},
     packages=find_packages(),
-    install_requires=['kubernetes', 'requests']  # Todo: load requirements.txt
+    install_requires=['kubernetes', 'requests', 'python-crontab']  # Todo: load requirements.txt
 )
