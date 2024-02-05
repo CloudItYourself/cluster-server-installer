@@ -116,10 +116,6 @@ class VpnServerInstaller:
 
         VpnServerInstaller.HEAD_SCALE_CONFIG_PATH.chmod(0o777)
         VpnServerInstaller.HEAD_SCALE_ACL_PATH.chmod(0o777)
-        
-        shutil.chown(str(cert_crt_path.absolute()),user='headscale',group='headscale')
-        shutil.chown(str(cert_key_path.absolute()), user='headscale', group='headscale')
-
 
         self._logger.info("Starting headscale")
         status &= os.system(f'systemctl start headscale') == 0
