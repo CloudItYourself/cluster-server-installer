@@ -13,11 +13,7 @@ from cluster_server_installer.certificates.lego_certificate_installer import Leg
 ACL_TEMPLATE = """
 {{
   "acls": [
-  {{
-      "action": "accept",
-      "users": ["cluster-user"],
-      "ports": ["*"]
-    }}
+  {{"action": "accept", "src": ["cluster-user"], "dst": ["cluster-user:*"] }}
   ],
   "autoApprovers": {{
         "routes": {{
