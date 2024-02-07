@@ -10,7 +10,8 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 def main(host_url: str, email: str, registry: str, access_key: str, go_daddy_access_key: str, go_daddy_secret: str):
     initialize_logger(LOGGER_NAME)
     vpn_installer = VpnServerInstaller()
-    vpn_installer.install_vpn(host_url=host_url,email=email, godaddy_key=go_daddy_access_key, godaddy_secret=go_daddy_secret)
+    vpn_installer.install_vpn(host_url=host_url, gitlab_token=access_key, email=email, godaddy_key=go_daddy_access_key,
+                              godaddy_secret=go_daddy_secret)
 
     k3s_installer = K3sInstaller()
     k3s_installer.install_kubernetes(host_url=host_url, email=email, registry_url=registry, access_key=access_key)

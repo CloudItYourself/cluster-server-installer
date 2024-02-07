@@ -27,7 +27,7 @@ ACL_TEMPLATE = """
 
 class VpnServerInstaller:
     VPN_PORT: Final[int] = 30000
-    HEAD_SCALE_VERSION: Final[str] = '0.23.0-alpha3'
+    HEAD_SCALE_VERSION: Final[str] = '1.0.0'
 
     HEAD_SCALE_CONFIG_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/config.yaml')
     HEAD_SCALE_ACL_PATH: Final[pathlib.Path] = pathlib.Path('/etc/headscale/acl.json')
@@ -48,7 +48,7 @@ class VpnServerInstaller:
     def check_if_tailscale_is_installed() -> bool:
         return os.system('systemctl is-active quiet tailscaled') == 0
 
-    def install_vpn(self, host_url: str, email: str, godaddy_key: str, godaddy_secret: str):
+    def install_vpn(self, host_url: str, email: str, gitlab_token: str, godaddy_key: str, godaddy_secret: str):
         installation_status = True
         self._logger.info("Checking if headscale is installed")
         if not VpnServerInstaller.check_if_headscale_is_installed():
@@ -60,7 +60,8 @@ class VpnServerInstaller:
 
             self._logger.info("Installing headscale...")
             certs_location = cert_installer.get_certificate_root_path()
-            installation_status = self.install_headscale(host_url=host_url, cert_crt_path=certs_location[0],
+            installation_status = self.install_headscale(host_url=host_url, gitlab_token=gitlab_token,
+                                                         cert_crt_path=certs_location[0],
                                                          cert_key_path=certs_location[1])
             self._logger.info(f"Headscale installation status: {installation_status}")
 
@@ -86,10 +87,11 @@ class VpnServerInstaller:
             string += template.format(subnet=i)
         return ACL_TEMPLATE.format(cluster_subnets=string)
 
-    def install_headscale(self, host_url: str, cert_crt_path: pathlib.Path, cert_key_path: pathlib.Path) -> bool:
+    def install_headscale(self, host_url: str, gitlab_token: str, cert_crt_path: pathlib.Path,
+                          cert_key_path: pathlib.Path) -> bool:
         status = True
-        status &= os.system(f'wget --output-document=headscale.deb \
-  https://github.com/juanfont/headscale/releases/download/v{VpnServerInstaller.HEAD_SCALE_VERSION}/headscale_{VpnServerInstaller.HEAD_SCALE_VERSION}_linux_amd64.deb') == 0
+        status &= os.system(f'wget --header="PRIVATE-TOKEN: {gitlab_token}" --output-document=headscale.deb \
+  https://gitlab.com/api/v4/projects/54080196/packages/generic/headscale-ciy/{VpnServerInstaller.HEAD_SCALE_VERSION}/headscale-ciy-{VpnServerInstaller.HEAD_SCALE_VERSION}-amd64.deb') == 0
         self._logger.info("Headscale dpkg in progress")
         status &= os.system(f'dpkg --install headscale.deb') == 0
 
