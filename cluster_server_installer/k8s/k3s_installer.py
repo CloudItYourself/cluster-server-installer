@@ -19,8 +19,8 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 
 
 class K3sInstaller:
-    K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 520
-    DASHBOARD_STARTUP_TIME_IN_SECONDS: Final[int] = 500
+    K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 600
+    DASHBOARD_STARTUP_TIME_IN_SECONDS: Final[int] = 600
 
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
