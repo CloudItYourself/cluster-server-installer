@@ -24,6 +24,9 @@ jobs:
 
       - name: Install nuitka
         run: pip install nuitka
+        
+      - name: Install patchelf
+        run: apt install patchelf -y
 
       - name: Build binary
         run: nuitka3 --onefile --include-data-dir=./cluster_server_installer/resources=cluster_server_installer/resources cluster_server_installer/main.py
