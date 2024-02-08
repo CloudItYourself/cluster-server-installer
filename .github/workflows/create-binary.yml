@@ -26,7 +26,7 @@ jobs:
         run: pip install nuitka
 
       - name: Build binary
-        run: nuitka --onefile --include-data-dir=./cluster_server_installer/resources=cluster_server_installer/resources cluster_server_installer/main.py
+        run: nuitka3 --onefile --include-data-dir=./cluster_server_installer/resources=cluster_server_installer/resources cluster_server_installer/main.py
 
       - name: Upload to gitlab
         run: |
