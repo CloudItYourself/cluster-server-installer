@@ -1,7 +1,6 @@
 import os
 import pathlib
 import json
-import sys
 import random
 import crontab
 from typing import Final, Tuple
@@ -10,6 +9,7 @@ from typing import Final, Tuple
 class LegoCertificateInstaller:
     LEGO_FILE_PATH: Final[pathlib.Path] = pathlib.Path(__file__).parent.parent / 'resources' / 'cert_provider' / 'lego'
     DNS_TIMEOUT: Final[int] = 10 * 60
+    INSTALLER_DIRECTORY: Final[str] = '/usr/local/bin/ciy-installer'
     CERT_DIR: Final[pathlib.Path] = pathlib.Path('/usr/local/src/certs')
     CERT_ORIGINAL_DIR: Final[pathlib.Path] = pathlib.Path('/usr/local/src/orig_certs')
     CERT_DETAILS_FILE: Final[pathlib.Path] = pathlib.Path('/usr/local/src/orig_certs') / 'renewal_details.json'
@@ -49,7 +49,7 @@ class LegoCertificateInstaller:
         LegoCertificateInstaller.alter_certificate_permissions(self._domain)
 
         cron = crontab.CronTab(user='root')
-        job = cron.new(command=f'{str(pathlib.Path(sys.executable).absolute())} renew-certs')
+        job = cron.new(command=f'{LegoCertificateInstaller.INSTALLER_DIRECTORY} renew-certs')
         job.from_line(f'{random.randrange(0, 59)} {random.randrange(0, 23)} 20 * *')
         cron.write()
 
