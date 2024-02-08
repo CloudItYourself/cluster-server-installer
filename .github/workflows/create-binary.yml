@@ -3,7 +3,7 @@ run-name: ${{ github.actor }}
 on: [ push ]
 jobs:
   build-and-upload-package:
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
