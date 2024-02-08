@@ -1,4 +1,4 @@
-name: Build base python docker images
+name: Build CIY Server Installer
 run-name: ${{ github.actor }}
 on: [ push ]
 jobs:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Install nuitka
         run: pip install nuitka
-        
+
       - name: Install patchelf
         run: apt install patchelf -y
 
