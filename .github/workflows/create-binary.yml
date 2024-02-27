@@ -1,6 +1,10 @@
 name: Build CIY Server Installer
 run-name: ${{ github.actor }}
-on: [ push ]
+on: 
+ push:
+    branches:
+      - main
+      - 'releases/**'
 jobs:
   build-and-upload-package:
     runs-on: [self-hosted, linux]

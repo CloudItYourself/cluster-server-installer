@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: cluster-access-control
+ namespace: cloud-iy
+spec:
+ replicas: 2
+ selector:
+    matchLabels:
+      app: cluster-access-control
+ template:
+    metadata:
+      labels:
+        app: cluster-access-control
+    spec:
+      volumes:
+        - name: cloud-iy-details
+          secret:
+            secretName: cloudiy-server-details
+      restartPolicy: Always
+      containers:
+      - name: cluster-access-control
+        image: registry.gitlab.com/ronen48/ciy/cluster-access-control:latest
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - name: cloud-iy-details
+            readOnly: true
+            mountPath: "/etc/cloud-iy-details"
+        env:
+          - name: KUBERNETES_CONFIG
+            value: "/etc/cloud-iy-details"
+          - name: REDIS_IP
+            value: redis-service.cloud-iy.svc.cluster.local
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: redis-pwd
+                key: redis-pwd
+      imagePullSecrets:
+        - name: cloud-iy-credentials
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: cluster-access-control-service
+ namespace: cloud-iy
+spec:
+ selector:
+    app: cluster-access-control
+ ports:
+   - name: http
+     protocol: TCP
+     port: 8080
+     targetPort: 8080
+ type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluster-access-control-ingress
+  namespace: cloud-iy
+  annotations:
+    spec.ingressClassName: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
+
+spec:
+  rules:
+    - host: cluster-access.${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cluster-access-control-service
+                port:
+                  number: 8080
+  tls:
+    - secretName: cluster-access-tls
+      hosts:
+        - cluster-access.${DOMAIN}
