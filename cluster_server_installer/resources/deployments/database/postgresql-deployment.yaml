@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+ name: postgres-pvc
+ namespace: cloud-iy
+spec:
+  storageClassName: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: postgres-deployment
+ namespace: cloud-iy
+spec:
+ replicas: 1
+ selector:
+    matchLabels:
+      app: postgres
+ template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:latest
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: metrics-postgres-details
+              key: user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: metrics-postgres-details
+              key: pwd
+        - name: POSTGRES_DB
+          value: "ciy_metrics"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-storage
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: postgres-service
+ namespace: cloud-iy
+spec:
+ selector:
+    app: postgres
+ ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+ type: ClusterIP
