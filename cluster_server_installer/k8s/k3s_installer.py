@@ -5,7 +5,7 @@ import os
 import pathlib
 import random
 import string
-import subprocess
+import platform
 import time
 from tempfile import TemporaryDirectory
 from typing import Final, Optional, Dict, List
@@ -29,13 +29,18 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner-namespace.yml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner.yml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'database' / 'postgresql-deployment.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'redis.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'cluster-access-control.yml',
     ]
 
     def __init__(self):
         self._logger = logging.getLogger(LOGGER_NAME)
         self._kube_client: Optional[kubernetes.client.CoreV1Api] = None
         self._preauth_key: Optional[str] = None
+        self._hostname = platform.node()
 
     def check_if_kubernetes_installed_properly(self):
         self._logger.info("Checking if k3s is installed properly...")
@@ -67,6 +72,11 @@ class K3sInstaller:
     def install_kubernetes(self, host_url: str, email: str, registry_url: str, access_key: str):
         self._logger.info("Verifiying k3s installation...")
         if not self.check_if_kubernetes_installed_properly():
+            self._logger.info("Installing nfs storage provider...")
+            if not self._install_nfs_server():
+                self._logger.error("NFS installation failed...")
+                return
+
             self._logger.info("Installing k3s...")
             if not self._install_kube_env(host_url):
                 self._logger.error("K3s installation failed...")
@@ -80,6 +90,17 @@ class K3sInstaller:
                 self._logger.error("K3s installation failed... failed to deploy pre-requisites")
                 return
         self._logger.info("K3S installed properly")
+
+    @staticmethod
+    def _install_nfs_server():
+        installation_status = True
+        installation_status &= os.system('apt-get update') == 0
+        installation_status &= os.system('apt install nfs-kernel-server -y') == 0
+        installation_status &= os.system('systemctl start nfs-kernel-server.service') == 0
+        pathlib.Path('/var/share-storage').mkdir(exist_ok=True)
+        os.system('chmod 777 /var/share-storage')
+        pathlib.Path('/etc/exports').write_text(f'/var/share-storage *(rw,sync,no_subtree_check,no_root_squash)')
+        return installation_status and os.system('exportfs -a') == 0
 
     def install_k3s(self, host_url: str) -> bool:
         os.system('tailscale down')
@@ -167,8 +188,17 @@ class K3sInstaller:
     def _install_deployments(self, email: str, domain: str) -> bool:
         dashboard_initial_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         redis_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+
+        postgres_user = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        postgres_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+
         self._create_namespaced_secret(secret_name='redis-pwd', namespace='cloud-iy', fields={
             'redis-pwd': base64.b64encode(redis_pwd.encode('utf-8')).decode('utf-8')
+        })
+
+        self._create_namespaced_secret(secret_name='metrics-postgres-details', namespace='cloud-iy', fields={
+            'user': base64.b64encode(postgres_user.encode('utf-8')).decode('utf-8'),
+            'pwd': base64.b64encode(postgres_pwd.encode('utf-8')).decode('utf-8'),
         })
 
         with TemporaryDirectory() as tmp_dir:
@@ -177,7 +207,8 @@ class K3sInstaller:
                 tmp_file_name = tmp_dir_path / deployment.name
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
-                        '${DASHBOARD_PASSWORD}', dashboard_initial_pwd).replace('${REDIS_PASSWORD}', redis_pwd))
+                        '${DASHBOARD_PASSWORD}', dashboard_initial_pwd).replace('${REDIS_PASSWORD}', redis_pwd).replace(
+                        '${HOSTNAME}', self._hostname))
 
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
