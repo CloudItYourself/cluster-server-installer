@@ -94,6 +94,7 @@ class K3sInstaller:
     @staticmethod
     def _install_nfs_server():
         installation_status = True
+        installation_status &= os.system('apt-get update') == 0
         installation_status &= os.system('apt install nfs-kernel-server -y') == 0
         installation_status &= os.system('systemctl start nfs-kernel-server.service') == 0
         pathlib.Path('/var/share-storage').mkdir(exist_ok=True)
