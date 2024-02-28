@@ -29,11 +29,11 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner-namespace.yml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner.yml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner-namespace.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'database' / 'postgresql-deployment.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'redis.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'cluster-access-control.yml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'cluster-access-control.yaml',
     ]
 
     def __init__(self):

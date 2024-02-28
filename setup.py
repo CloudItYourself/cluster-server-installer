@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="cluster-server-installer",
-    version="1.0.1",
+    version="1.0.2",
     include_package_data=True,
     package_data={'': ['resources/tailscale/*.tgz', 'resources/deployments/certificates/*.yaml',
                        'resources/deployments/dashboard/*.yaml', 'resources/deployments/ciy/*.yaml',
