@@ -35,7 +35,7 @@ CLUSTER_ACCESS_URL=https://cluster-access.{host}
     def install_ciy_scheduler(self, host_url: str, gitlab_token: str) -> bool:
         status = True
         status &= os.system(f'wget --header="PRIVATE-TOKEN: {gitlab_token}" --output-document=ciy-scheduler.deb \
-  https://gitlab.com/api/v4/projects/54080196/packages/generic/ciy-scheduler/{CiySchedulerInstaller.CIY_SCHEDULER_SCALE_VERSION}/ciy-scheduler-{CiySchedulerInstaller.CIY_SCHEDULER_SCALE_VERSION}-amd64.deb') == 0
+  https://gitlab.com/api/v4/projects/54080196/packages/generic/ciy-scheduler/{CiySchedulerInstaller.CIY_SCHEDULER_SCALE_VERSION}/ciy-kube-scheduler-{CiySchedulerInstaller.CIY_SCHEDULER_SCALE_VERSION}-amd64.deb') == 0
         self._logger.info("Ciy-scheduler dpkg in progress")
         status &= os.system(f'dpkg --install ciy-scheduler.deb') == 0
 
