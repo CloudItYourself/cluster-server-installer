@@ -2,6 +2,7 @@ import argparse
 
 from cluster_server_installer import LOGGER_NAME
 from cluster_server_installer.certificates.lego_certificate_installer import LegoCertificateInstaller
+from cluster_server_installer.k8s.ciy_scheduler_installer import CiySchedulerInstaller
 from cluster_server_installer.k8s.k3s_installer import K3sInstaller
 from cluster_server_installer.utilities.logging import initialize_logger
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
@@ -12,7 +13,8 @@ def main(host_url: str, email: str, registry: str, access_key: str, go_daddy_acc
     vpn_installer = VpnServerInstaller()
     vpn_installer.install_vpn(host_url=host_url, gitlab_token=access_key, email=email, godaddy_key=go_daddy_access_key,
                               godaddy_secret=go_daddy_secret)
-
+    ciy_scheduler_installer = CiySchedulerInstaller()
+    ciy_scheduler_installer.install_kube_scheduler(host_url=host_url, gitlab_token=access_key)
     k3s_installer = K3sInstaller()
     k3s_installer.install_kubernetes(host_url=host_url, email=email, registry_url=registry, access_key=access_key)
 
