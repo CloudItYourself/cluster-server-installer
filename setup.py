@@ -7,7 +7,7 @@ setup(
     package_data={'': ['resources/tailscale/*.tgz', 'resources/deployments/certificates/*.yaml',
                        'resources/deployments/dashboard/*.yaml', 'resources/deployments/ciy/*.yaml',
                        'resources/deployments/storage/*.yaml', 'resources/deployments/database/*.yaml',
-                       'resources/cert_provider/*']},
+                       'resources/cert_provider/*','resources/deployments/descheduler/*.yaml']},
     packages=find_packages(),
     install_requires=['kubernetes', 'requests', 'python-crontab']
 )

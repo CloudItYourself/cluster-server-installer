@@ -34,6 +34,9 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'database' / 'postgresql-deployment.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'redis.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'cluster-access-control.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'rbac.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'configmap.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'deployment.yaml',
     ]
 
     def __init__(self):
