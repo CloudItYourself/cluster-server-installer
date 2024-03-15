@@ -34,7 +34,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: descheduler-sa
-  namespace: kube-system
+  namespace: cloud-iy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -47,4 +47,4 @@ roleRef:
 subjects:
   - name: descheduler-sa
     kind: ServiceAccount
-    namespace: kube-system
+    namespace: cloud-iy

@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: descheduler-policy-configmap
-  namespace: kube-system
+  namespace: cloud-iy
 data:
   policy.yaml: |
     apiVersion: "descheduler/v1alpha2"
@@ -23,7 +23,20 @@ data:
               exclude:
               - "kube-system"
               - "cloud-iy"
+        - name: "LowNodeRealUtilization"
+          args:
+            thresholds:
+              "cpu" : 20
+              "memory": 20
+            targetThresholds:
+              "memory": 80
+              "cpu" : 80
+            evictableNamespaces:
+              exclude:
+              - "kube-system"
+              - "cloud-iy"
         plugins:
           balance:
             enabled:
               - "LowNodeUtilization"
+              - "LowNodeRealUtilization"
