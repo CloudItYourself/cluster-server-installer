@@ -10,6 +10,7 @@ class CiySchedulerInstaller:
     ENVIRONMENT_FILE_PATH: Final[pathlib.Path] = pathlib.Path('/etc/ciy-scheduling/env.cfg')
     ENVIRONMENT_FILE_CONTENTS: Final[str] = """KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 CLUSTER_ACCESS_URL=https://cluster-access.{host}
+SCHEDULER_SCORE_SERVER_URL=0.0.0.0:25555
     """
 
     CIY_SCHEDULER_SCALE_VERSION: Final[str] = '1.0.0'

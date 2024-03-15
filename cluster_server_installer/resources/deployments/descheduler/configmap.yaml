@@ -17,8 +17,8 @@ data:
               "cpu" : 20
               "memory": 20
             targetThresholds:
-              "memory": 70
-              "cpu" : 70
+              "memory": 50
+              "cpu" : 50
             evictableNamespaces:
               exclude:
               - "kube-system"
