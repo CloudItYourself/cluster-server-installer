@@ -20,7 +20,7 @@ spec:
       containers:
         - name: descheduler
           image: registry.gitlab.com/ronen48/ciy/ciy-descheduler:1.0.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command:
             - "/bin/descheduler"
           args:

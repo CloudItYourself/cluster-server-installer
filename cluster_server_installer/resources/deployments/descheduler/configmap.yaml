@@ -23,6 +23,7 @@ data:
               exclude:
               - "kube-system"
               - "cloud-iy"
+              - "nfs-provisioner"
         - name: "LowNodeRealUtilization"
           args:
             thresholds:
@@ -35,6 +36,7 @@ data:
               exclude:
               - "kube-system"
               - "cloud-iy"
+              - "nfs-provisioner"
         plugins:
           balance:
             enabled:
