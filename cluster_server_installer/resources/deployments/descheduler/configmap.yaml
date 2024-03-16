@@ -24,6 +24,7 @@ data:
               - "kube-system"
               - "cloud-iy"
               - "nfs-provisioner"
+              - "cert-manager"
         - name: "LowNodeRealUtilization"
           args:
             thresholds:
@@ -37,6 +38,7 @@ data:
               - "kube-system"
               - "cloud-iy"
               - "nfs-provisioner"
+              - "cert-manager"
         plugins:
           balance:
             enabled:
