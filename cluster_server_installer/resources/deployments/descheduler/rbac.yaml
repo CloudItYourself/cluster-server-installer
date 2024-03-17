@@ -32,6 +32,12 @@ rules:
 - apiGroups: [ "metrics.k8s.io" ]
   resources: [ "nodes" , "pods"]
   verbs: [ "get", "list", "watch" ]
+- apiGroups: [ "apps" ]
+  resources: [ "replicasets" ]
+  verbs: [ "get", "list", "watch" ]
+- apiGroups: [ "apps" ]
+  resources: [ "deployments" ]
+  verbs: [ "get", "list", "watch" ]
 ---
 apiVersion: v1
 kind: ServiceAccount
