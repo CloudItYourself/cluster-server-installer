@@ -29,6 +29,9 @@ rules:
   resources: ["leases"]
   resourceNames: ["descheduler"]
   verbs: ["get", "patch", "delete"]
+- apiGroups: [ "metrics.k8s.io" ]
+  resources: [ "nodes" , "pods"]
+  verbs: [ "get", "list", "watch" ]
 ---
 apiVersion: v1
 kind: ServiceAccount

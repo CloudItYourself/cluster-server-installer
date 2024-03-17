@@ -21,10 +21,24 @@ data:
               "cpu" : 50
             evictableNamespaces:
               exclude:
-              - "kube-system"
               - "cloud-iy"
               - "nfs-provisioner"
+              - "local"
+              - "default"
+              - "kube-system"
+              - "kube-node-lease"
+              - "kube-public"
+              - "cattle-system"
               - "cert-manager"
+              - "fleet-local"
+              - "cattle-global-nt"
+              - "fleet-default"
+              - "cattle-global-data"
+              - "cattle-impersonation-system"
+              - "cattle-fleet-system"
+              - "cattle-fleet-clusters-system"
+              - "cattle-provisioning-capi-system"
+              - "cattle-fleet-local-system"
         - name: "LowNodeRealUtilization"
           args:
             thresholds:
@@ -35,10 +49,24 @@ data:
               "cpu" : 80
             evictableNamespaces:
               exclude:
-              - "kube-system"
               - "cloud-iy"
               - "nfs-provisioner"
+              - "local"
+              - "default"
+              - "kube-system"
+              - "kube-node-lease"
+              - "kube-public"
+              - "cattle-system"
               - "cert-manager"
+              - "fleet-local"
+              - "cattle-global-nt"
+              - "fleet-default"
+              - "cattle-global-data"
+              - "cattle-impersonation-system"
+              - "cattle-fleet-system"
+              - "cattle-fleet-clusters-system"
+              - "cattle-provisioning-capi-system"
+              - "cattle-fleet-local-system"
         plugins:
           balance:
             enabled:
