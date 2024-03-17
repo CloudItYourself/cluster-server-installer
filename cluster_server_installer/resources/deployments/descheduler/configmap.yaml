@@ -17,6 +17,7 @@ data:
             evictSystemCriticalPods: false
             evictLocalStoragePods: false
             nodeFit: true
+            minReplicas: 1
         - name: "LowNodeUtilization"
           args:
             thresholds:
