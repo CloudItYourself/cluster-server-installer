@@ -8,9 +8,16 @@ data:
   policy.yaml: |
     apiVersion: "descheduler/v1alpha2"
     kind: "DeschedulerPolicy"
+    maxNoOfPodsToEvictPerNode: 4
     profiles:
       - name: ProfileName
         pluginConfig:
+        - name: "DefaultEvictor"
+          args:
+            evictSystemCriticalPods: false
+            evictLocalStoragePods: false
+            nodeFit: true
+            minReplicas: 1
         - name: "LowNodeUtilization"
           args:
             thresholds:

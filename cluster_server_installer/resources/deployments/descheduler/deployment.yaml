@@ -27,9 +27,9 @@ spec:
             - "--policy-config-file"
             - "/policy-dir/policy.yaml"
             - "--descheduling-interval"
-            - "2m"
+            - "1m"
             - "--metrics-cache-sync-interval"
-            - "2m"
+            - "20s"
             - "--v"
             - "3"
           ports:
