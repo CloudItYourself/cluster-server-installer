@@ -52,8 +52,8 @@ data:
               "cpu" : 20
               "memory": 20
             targetThresholds:
-              "memory": 80
-              "cpu" : 80
+              "memory": 60
+              "cpu" : 60
             evictableNamespaces:
               exclude:
               - "cloud-iy"
