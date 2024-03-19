@@ -46,6 +46,7 @@ data:
               - "cattle-fleet-clusters-system"
               - "cattle-provisioning-capi-system"
               - "cattle-fleet-local-system"
+              - "metallb-system"
         - name: "LowNodeRealUtilization"
           args:
             thresholds:
@@ -74,6 +75,7 @@ data:
               - "cattle-fleet-clusters-system"
               - "cattle-provisioning-capi-system"
               - "cattle-fleet-local-system"
+              - "metallb-system"
         plugins:
           balance:
             enabled:

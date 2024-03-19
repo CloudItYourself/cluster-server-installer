@@ -15,6 +15,7 @@ from kubernetes import client
 import kubernetes
 
 from cluster_server_installer import LOGGER_NAME
+from cluster_server_installer.utilities.socket_utils import get_ethernet_ip
 from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 
 
@@ -37,6 +38,8 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'rbac.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'configmap.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'deployment.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-deployment.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-config.yaml',
     ]
 
     def __init__(self):
@@ -108,7 +111,7 @@ class K3sInstaller:
     def install_k3s(self, host_url: str) -> bool:
         os.system('tailscale down')
         return os.system(
-            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --kube-controller-arg pod-eviction-timeout=120s --disable-scheduler --disable local-storage --node-label ciy.persistent_node=True --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
+            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb --kube-controller-arg pod-eviction-timeout=120s --disable-scheduler --disable local-storage --node-label ciy.persistent_node=True --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
     def _create_namespaced_secret(self, secret_name: str, namespace: str, fields: Dict[str, str]):
         self._kube_client.create_namespaced_secret(
@@ -195,6 +198,8 @@ class K3sInstaller:
         postgres_user = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         postgres_pwd = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
 
+        external_ip = get_ethernet_ip()
+
         self._create_namespaced_secret(secret_name='redis-pwd', namespace='cloud-iy', fields={
             'redis-pwd': base64.b64encode(redis_pwd.encode('utf-8')).decode('utf-8')
         })
@@ -211,7 +216,7 @@ class K3sInstaller:
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
                         '${DASHBOARD_PASSWORD}', dashboard_initial_pwd).replace('${REDIS_PASSWORD}', redis_pwd).replace(
-                        '${HOSTNAME}', self._hostname))
+                        '${HOSTNAME}', self._hostname).replace('${HOST_IP}', external_ip))
 
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
@@ -219,6 +224,10 @@ class K3sInstaller:
                 if i == 0:
                     print("Waiting for cert manager to come up...")
                     time.sleep(45)
+                elif 'metallb-deployment.yaml' in deployment.name:
+                    print("Waiting for metal-lb to come up...")
+                    time.sleep(20)
+
 
         if K3sInstaller.wait_for_dashboard_to_respond(domain, K3sInstaller.DASHBOARD_STARTUP_TIME_IN_SECONDS):
             print(f"Dashboard initial password: {dashboard_initial_pwd}")
