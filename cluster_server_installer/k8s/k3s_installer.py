@@ -25,6 +25,10 @@ class K3sInstaller:
 
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-deployment.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-config.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-namespace.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-helm.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'cert-manager.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'lets-encrypt.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
@@ -38,8 +42,6 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'rbac.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'configmap.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'descheduler' / 'deployment.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-deployment.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-config.yaml',
     ]
 
     def __init__(self):
@@ -112,7 +114,7 @@ class K3sInstaller:
         os.system('tailscale down')
         external_ip = get_ethernet_ip()
         return os.system(
-            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb --disable-scheduler --disable local-storage --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-external-ip --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
+            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb --disable=traefik -disable-scheduler --disable local-storage --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-external-ip --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
     def _create_namespaced_secret(self, secret_name: str, namespace: str, fields: Dict[str, str]):
         self._kube_client.create_namespaced_secret(
@@ -212,7 +214,7 @@ class K3sInstaller:
 
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
-            for i, deployment in enumerate(K3sInstaller.DEPLOYMENTS):
+            for deployment in K3sInstaller.DEPLOYMENTS:
                 tmp_file_name = tmp_dir_path / deployment.name
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
@@ -222,13 +224,20 @@ class K3sInstaller:
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
                     return False
-                if i == 0:
+
+                if 'cert-manager.yaml' in deployment.name:
                     print("Waiting for cert manager to come up...")
                     time.sleep(45)
+
                 elif 'metallb-deployment.yaml' in deployment.name:
                     print("Waiting for metal-lb to come up...")
                     time.sleep(20)
 
+                elif 'metallb-config.yaml' in deployment.name:
+                    time.sleep(60) # allow for ip propagations (?)
+                    #  restart metallb controller and speaker
+                    os.system('kubectl rollout restart deployment -n metallb-system controller speaker')
+                    time.sleep(20)
 
         if K3sInstaller.wait_for_dashboard_to_respond(domain, K3sInstaller.DASHBOARD_STARTUP_TIME_IN_SECONDS):
             print(f"Dashboard initial password: {dashboard_initial_pwd}")

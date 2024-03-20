@@ -1,0 +1,16 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  repo: https://traefik.github.io/charts
+  chart: traefik
+  targetNamespace: traefik
+  version: 26.1.0
+  valuesContent: |-
+    additionalArguments:
+      - '--serversTransport.insecureSkipVerify=true' 
+    service:
+      spec:
+        externalTrafficPolicy: Local
