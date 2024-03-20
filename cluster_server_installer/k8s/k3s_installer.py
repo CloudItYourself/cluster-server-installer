@@ -233,11 +233,6 @@ class K3sInstaller:
                     print("Waiting for metal-lb to come up...")
                     time.sleep(20)
 
-                elif 'metallb-config.yaml' in deployment.name:
-                    time.sleep(60) # allow for ip propagations (?)
-                    #  restart metallb controller and speaker
-                    os.system('kubectl rollout restart deployment -n metallb-system controller speaker')
-                    time.sleep(20)
 
         if K3sInstaller.wait_for_dashboard_to_respond(domain, K3sInstaller.DASHBOARD_STARTUP_TIME_IN_SECONDS):
             print(f"Dashboard initial password: {dashboard_initial_pwd}")
