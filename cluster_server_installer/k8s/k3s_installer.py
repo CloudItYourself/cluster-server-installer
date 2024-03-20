@@ -114,7 +114,7 @@ class K3sInstaller:
         os.system('tailscale down')
         external_ip = get_ethernet_ip()
         return os.system(
-            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb --disable=traefik -disable-scheduler --disable local-storage --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-external-ip --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
+            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb,traefik,local-storage -disable-scheduler --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-external-ip --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
     def _create_namespaced_secret(self, secret_name: str, namespace: str, fields: Dict[str, str]):
         self._kube_client.create_namespaced_secret(
