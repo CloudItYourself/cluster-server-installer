@@ -105,13 +105,14 @@ spec:
       terminationGracePeriodSeconds: 0
       containers:
       - name: kube-loxilb
-        image: ghcr.io/loxilb-io/kube-loxilb:latest
+        image: ghcr.io/cloudityourself/kube-loxilb:1.0.0
         imagePullPolicy: Always
         command:
         - /bin/kube-loxilb
         args:
-        - --externalCIDR=135.181.203.71/32
+        - --externalCIDR=${HOST_URL}/32
         - --setRoles=0.0.0.0
+        - --ignoreLoadBalancerClass=true
         resources:
           requests:
             cpu: "100m"

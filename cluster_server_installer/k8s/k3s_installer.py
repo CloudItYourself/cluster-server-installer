@@ -25,8 +25,8 @@ class K3sInstaller:
 
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-deployment.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-config.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'loxilib.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'kube-loxilb-deployment.yaml.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-helm.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'cert-manager.yaml',
@@ -229,8 +229,8 @@ class K3sInstaller:
                     print("Waiting for cert manager to come up...")
                     time.sleep(45)
 
-                elif 'metallb-deployment.yaml' in deployment.name:
-                    print("Waiting for metal-lb to come up...")
+                elif 'loxilib.yaml' in deployment.name:
+                    print("Waiting for load balancer to come up...")
                     time.sleep(20)
 
 
