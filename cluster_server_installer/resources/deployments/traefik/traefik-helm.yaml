@@ -13,4 +13,4 @@ spec:
       - '--serversTransport.insecureSkipVerify=true' 
     service:
       spec:
-        externalTrafficPolicy: Local
+        externalTrafficPolicy: Cluster
