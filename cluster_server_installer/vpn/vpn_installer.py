@@ -153,7 +153,7 @@ class VpnServerInstaller:
 
     @staticmethod
     def get_headscale_preauthkey() -> str:
-        return subprocess.run(['headscale', 'preauthkeys', 'create', '-u', 'cluster-user'],
+        return subprocess.run(['headscale', 'preauthkeys', 'create', '-u', 'cluster-user', '--reusable'],
                               stdout=subprocess.PIPE).stdout.decode('utf-8').splitlines()[-1]
 
 
