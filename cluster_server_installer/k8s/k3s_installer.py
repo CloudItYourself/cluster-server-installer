@@ -24,9 +24,11 @@ class K3sInstaller:
     DASHBOARD_STARTUP_TIME_IN_SECONDS: Final[int] = 600
 
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
+    CNI_DEPLOYMENT_DEPLOYMENTS: Final[List[pathlib.Path]] = [
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'cilium' / 'cilium-helm.yaml',
+        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'cilium' / 'advertisment-cilium.yaml', ]
+
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-deployment.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'loadbalancer' / 'metallb-config.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'traefik' / 'traefik-helm.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'cert-manager.yaml',
@@ -34,7 +36,8 @@ class K3sInstaller:
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'certificates' / 'traefik-middleware.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'dashboard' / 'rancher.yaml',
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner-namespace.yaml',
+        pathlib.Path(
+            __file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner-namespace.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'storage' / 'nfs-provisioner.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'database' / 'postgresql-deployment.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'ciy' / 'redis.yaml',
@@ -114,7 +117,7 @@ class K3sInstaller:
         os.system('tailscale down')
         external_ip = get_ethernet_ip()
         return os.system(
-            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb,traefik,local-storage --disable-scheduler --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-external-ip --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
+            f'curl -sfL https://get.k3s.io | K3S_URL=https://{host_url}:6443 INSTALL_K3S_VERSION=v1.27.9+k3s1 INSTALL_K3S_EXEC="server --disable=servicelb,traefik,local-storage --disable-scheduler --node-label ciy.persistent_node=True --node-external-ip={external_ip} --flannel-backend=none --disable-network-policy --disable-kube-proxy --cluster-cidr=10.42.0.0/16 --service-cidr=10.43.0.0/16 --vpn-auth="name=tailscale,joinKey={VpnServerInstaller.get_headscale_preauthkey()},controlServerURL=https://{host_url}:{VpnServerInstaller.VPN_PORT}"" sh -s -') == 0
 
     def _create_namespaced_secret(self, secret_name: str, namespace: str, fields: Dict[str, str]):
         self._kube_client.create_namespaced_secret(
@@ -131,6 +134,44 @@ class K3sInstaller:
     def get_k3s_node_token() -> str:
         return pathlib.Path('/var/lib/rancher/k3s/server/agent-token').read_text().replace("\n", "")
 
+    def _untaint_nodes(self) -> bool:
+        try:
+            nodes = self._kube_client.list_node().items
+            for node in nodes:
+                taints = [taint for taint in node.spec.taints if taint.key == 'node.kubernetes.io/not-ready']
+                if len(taints) > 0:
+                    patch = {
+                        "spec": {
+                            "taints": [taint for taint in node.spec.taints if
+                                       taint.key != 'node.kubernetes.io/not-ready']
+                        }
+                    }
+                    self._kube_client.patch_node(node.metadata.name, patch)
+                    self._logger.info(
+                        f"Removed 'node.kubernetes.io/not-ready:NoSchedule' taint from node {node.metadata.name}")
+            return True
+        except Exception:
+            self._logger.warning("Failed to untaint nodes...")
+            return False
+
+    def _install_cni(self) -> bool:
+        external_ip = get_ethernet_ip()
+        with TemporaryDirectory() as tmp_dir:
+            tmp_dir_path = pathlib.Path(tmp_dir)
+            for deployment in K3sInstaller.CNI_DEPLOYMENT_DEPLOYMENTS:
+                tmp_file_name = tmp_dir_path / deployment.name
+                tmp_file_name.write_text(
+                    deployment.read_text().replace('${HOST_IP}', external_ip))
+
+                if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
+                    logging.exception(f"Failed to install {deployment}")
+                    return False
+
+                if 'cilium-helm.yaml' in deployment.name:
+                    self._logger.info("Waiting for cni to come up...")
+                    time.sleep(45)
+        return True
+
     def _install_kube_env(self, host_url: str) -> bool:
         self._preauth_key = VpnServerInstaller.get_api_key()
         if self.install_k3s(host_url) and os.system('kubectl --help') == 0:
@@ -140,8 +181,13 @@ class K3sInstaller:
                 self._kube_client.create_namespace(
                     body=client.V1Namespace(metadata=client.V1ObjectMeta(name="cloud-iy"))
                 )
+                self._untaint_nodes()
+
             except Exception:
                 self._logger.warning("Failed to create cloud-iy namespace...")
+                return False
+            if not self._install_cni():
+                return False
             if not self.wait_for_metrics_server_to_start():
                 return False
 
@@ -232,7 +278,6 @@ class K3sInstaller:
                 elif 'metallb-deployment.yaml' in deployment.name:
                     print("Waiting for metal-lb to come up...")
                     time.sleep(20)
-
 
         if K3sInstaller.wait_for_dashboard_to_respond(domain, K3sInstaller.DASHBOARD_STARTUP_TIME_IN_SECONDS):
             print(f"Dashboard initial password: {dashboard_initial_pwd}")
