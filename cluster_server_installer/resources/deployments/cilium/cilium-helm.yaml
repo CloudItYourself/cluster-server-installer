@@ -8,7 +8,7 @@ spec:
   chart: cilium/cilium
   targetNamespace: cloud-iy
   dockerRegistrySecret: cloud-iy-credentials
-  version: 1.16.0-dev-dev.270-HEAD-b82a6fd2ba
+  version: 1.16.0-dev-dev.278-HEAD-84fd573110
   set:
     kubeProxyReplacement=true
     k8sServiceHost=${HOST_IP}
