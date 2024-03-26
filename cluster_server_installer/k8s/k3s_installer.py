@@ -22,10 +22,9 @@ from cluster_server_installer.vpn.vpn_installer import VpnServerInstaller
 class K3sInstaller:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 600
     DASHBOARD_STARTUP_TIME_IN_SECONDS: Final[int] = 600
-
+    CILIUM_VERSION: Final[str] = '1.16.0-dev-dev.278-HEAD-84fd573110'
     RELEVANT_CONFIG_FILE: Final[str] = '/etc/rancher/k3s/k3s.yaml'
     CNI_DEPLOYMENT_DEPLOYMENTS: Final[List[pathlib.Path]] = [
-        pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'cilium' / 'cilium-helm.yaml',
         pathlib.Path(__file__).parent.parent / 'resources' / 'deployments' / 'cilium' / 'advertisment-cilium.yaml', ]
 
     DEPLOYMENTS: Final[List[pathlib.Path]] = [
@@ -66,6 +65,12 @@ class K3sInstaller:
             self._logger.error("Metrics-server failed to initialize... uninstalling")
             os.system('/usr/local/bin/k3s-uninstall.sh')
         return False
+
+    def _install_helm(self):
+        self._logger.info("Installing helm...")
+        os.system('curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3')
+        os.system('chmod 700 get_helm.sh')
+        os.system('./get_helm.sh')
 
     @staticmethod
     def wait_for_metrics_server_to_start():
@@ -156,6 +161,25 @@ class K3sInstaller:
 
     def _install_cni(self) -> bool:
         external_ip = get_ethernet_ip()
+        os.system('export KUBECONFIG=/etc/rancher/k3s/k3s.yaml')
+        if os.system(f"""
+        helm upgrade cilium cilium/cilium --devel --version {K3sInstaller.CILIUM_VERSION}  \
+              --namespace cloud-iy \
+              --set kubeProxyReplacement=true \
+              --set k8sServiceHost={external_ip} \
+              --set k8sServicePort=6443 \
+              --set bgp-annouce-lb-ips=true \
+              --set bgpControlPlane.enabled=true \
+              --set l2announcements.enabled=true \
+              --set externalIPs.enabled=true \
+              --set l2announcements.leaseDuration=3s \
+              --set l2announcements.leaseRenewDeadline=1s \
+              --set l2announcements.leaseRetryPeriod=200ms \
+              --set imagePullSecrets[0].name=cloud-iy-credentials
+        """) != 0:
+            return False
+
+        time.sleep(45)
         with TemporaryDirectory() as tmp_dir:
             tmp_dir_path = pathlib.Path(tmp_dir)
             for deployment in K3sInstaller.CNI_DEPLOYMENT_DEPLOYMENTS:
@@ -166,10 +190,6 @@ class K3sInstaller:
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
                     return False
-
-                if 'cilium-helm.yaml' in deployment.name:
-                    self._logger.info("Waiting for cni to come up...")
-                    time.sleep(45)
         return True
 
     def _install_kube_env(self, host_url: str) -> bool:
