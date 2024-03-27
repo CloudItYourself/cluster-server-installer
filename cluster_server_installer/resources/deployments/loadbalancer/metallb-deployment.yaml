@@ -1712,8 +1712,6 @@ spec:
         - name: METALLB_DEPLOYMENT
           value: controller
         image: registry.gitlab.com/ronen48/ciy/metallb/controller:v1.0.0-ciy
-        imagePullSecrets:
-          - name: cloud-iy-credentials
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -1762,6 +1760,8 @@ spec:
         secret:
           defaultMode: 420
           secretName: webhook-server-cert
+      imagePullSecrets:
+        - name: cloud-iy-credentials
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -1809,8 +1809,6 @@ spec:
         - name: METALLB_ML_SECRET_KEY_PATH
           value: /etc/ml_secret_key
         image: registry.gitlab.com/ronen48/ciy/metallb/speaker:v1.0.0-ciy
-        imagePullSecrets:
-          - name: cloud-iy-credentials
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -1867,6 +1865,8 @@ spec:
         secret:
           defaultMode: 420
           secretName: memberlist
+      imagePullSecrets:
+        - name: cloud-iy-credentials
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
