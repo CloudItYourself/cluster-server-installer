@@ -108,6 +108,7 @@ class K3sInstaller:
         pathlib.Path('/var/share-storage').mkdir(exist_ok=True)
         os.system('chmod 777 /var/share-storage')
         pathlib.Path('/etc/exports').write_text(f'/var/share-storage *(rw,sync,no_subtree_check,no_root_squash)')
+        os.system('chmod 777 /etc/exports')
         return installation_status and os.system('exportfs -a') == 0
 
     def install_k3s(self, host_url: str) -> bool:
