@@ -2,7 +2,7 @@ apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
   name: ippool-metallb
-  namespace: metallb-system
+  namespace: cloud-iy
 spec:
   addresses:
     - ${HOST_IP}/32
@@ -11,4 +11,4 @@ apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
   name: l2-ip-advertisment
-  namespace: metallb-system
+  namespace: cloud-iy
