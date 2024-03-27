@@ -219,7 +219,7 @@ class K3sInstaller:
                 tmp_file_name.write_text(
                     deployment.read_text().replace('${EMAIL}', email).replace('${DOMAIN}', domain).replace(
                         '${DASHBOARD_PASSWORD}', dashboard_initial_pwd).replace('${REDIS_PASSWORD}', redis_pwd).replace(
-                        '${HOSTNAME}', self._hostname).replace('${HOST_IP}', external_ip))
+                        '${HOST_NAME}', self._hostname).replace('${HOST_IP}', external_ip))
 
                 if os.system(f'kubectl apply -f {str(tmp_file_name.absolute())}') != 0:
                     logging.exception(f"Failed to install {deployment}")
