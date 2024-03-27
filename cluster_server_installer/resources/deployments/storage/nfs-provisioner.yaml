@@ -9,5 +9,5 @@ spec:
   targetNamespace: nfs-provisioner
   version: 4.0.18
   set:
-    nfs.server: ${HOSTNAME}
+    nfs.server: ${HOST_NAME}
     nfs.path: "/var/share-storage/"
